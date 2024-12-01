@@ -5,3 +5,5 @@ beautifulsoup4
 aiohttp
 torch
 nltk
+gunicorn
+numpy
