@@ -1,4 +1,6 @@
 Flask
+flask[async]
+flask-cors
 Flask-Cors
 requests
 beautifulsoup4
