@@ -443,7 +443,7 @@ def job_details():
 def extract_job_details(soup):
     try:
         job_title = soup.select_one('h2.p1N2lc').text.strip()
-        location = soup.select_one('span.r0wTof').text.strip()
+        Postion = soup.select_one('span.r0wTof').text.strip()
         qualifications = [li.text.strip() for li in soup.select('div.KwJkGe')]
         description = soup.select_one('div.aG5W3 > p').text.strip()
         apply_button = soup.select_one('a#apply-action-button')
@@ -451,7 +451,7 @@ def extract_job_details(soup):
         
         return {
             'title': job_title,
-            'location': location,
+            'Postion': Postion,
             'qualifications': qualifications,
             'description': description,
             'apply_url': 'https://www.google.com/about/careers/applications/' + apply_url
@@ -459,11 +459,37 @@ def extract_job_details(soup):
     except AttributeError as e:
         print(f"Error extracting job details: {str(e)}")
         return None
-
 def get_db_connection():
-    conn = sqlite3.connect('jobs.db')
+    conn = sqlite3.connect('jobnew.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+# Initialize database and create table (runs only once)
+def initialize_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Company_Name TEXT,
+            Postion TEXT,
+            Email TEXT,
+            Phone TEXT,
+            salary TEXT,
+            Apply_Link TEXT,
+            industry_type TEXT,
+            Location TEXT,
+            skills TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+# Run the initialization at startup
+initialize_database()
 
 @app.route('/api/jobs', methods=['GET'])
 def get_jobs():
@@ -473,70 +499,136 @@ def get_jobs():
     jobs = cursor.fetchall()
     conn.close()
     
-    # Convert jobs to a list of dictionaries
-    jobs_list = [dict(row) for row in jobs]
-    
-    return jsonify(jobs_list)
-
+    return jsonify([dict(row) for row in jobs])  # Convert rows to dictionaries
 
 @app.route('/api/jobs', methods=['POST'])
 def post_job():
-    job_data = request.get_json()
-    job_type = job_data.get('job_type')
-    location = job_data.get('location')
-    experience = job_data.get('experience')
-    salary = job_data.get('salary')
-    eligibility = job_data.get('eligibility')
-    industry_type = job_data.get('industry_type')
-    functional_area = job_data.get('functional_area')
-    skills = job_data.get('skills')
+    conn = None  
+    try:
+        job_data = request.get_json()
+        print("Received Data:", job_data)  # Debugging: Print the incoming data
 
-    conn = sqlite3.connect('jobs.db')
-    cursor = conn.cursor()
+        if not job_data:
+            return jsonify({'error': 'Invalid JSON or empty request body'}), 400
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS jobs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            job_type TEXT,
-            location TEXT,
-            experience TEXT,
-            salary TEXT,
-            eligibility TEXT,
-            industry_type TEXT,
-            functional_area TEXT,
-            skills TEXT
-        )
-    ''')
+        # Validate required fields
+        required_fields = ['Company_Name', 'Postion', 'Email', 'Phone', 'salary', 
+                           'Apply_Link', 'industry_type', 'Location', 'skills']
+        missing_fields = [field for field in required_fields if field not in job_data]
+        
+        if missing_fields:
+            return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
 
-    cursor.execute('''
-        INSERT INTO jobs (job_type, location, experience, salary, eligibility, industry_type, functional_area, skills)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (job_type, location, experience, salary, eligibility, industry_type, functional_area, skills))
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    conn.commit()
-    conn.close()
+        cursor.execute('''
+            INSERT INTO jobs (Company_Name, Postion, Email, Phone, salary, 
+                              Apply_Link, industry_type, Location, skills)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            job_data['Company_Name'], job_data['Postion'], job_data['Email'], 
+            job_data['Phone'], job_data['salary'], job_data['Apply_Link'], 
+            job_data['industry_type'], job_data['Location'], job_data['skills']
+        ))
 
-    return jsonify({'message': 'Job posted successfully'}), 201
+        conn.commit()
+        return jsonify({'message': 'Job posted successfully'}), 201
 
+    except Exception as e:
+        import traceback
+        print("Error:", traceback.format_exc())  
+        return jsonify({'error': str(e)}), 500
 
-
-
-
-
+    finally:
+        if conn:
+            conn.close()
 
 
 
 
 
-from flask import Flask, jsonify, request
+
+
+
+
+# from flask import Flask, jsonify, request
+# import json
+# import random
+# import torch
+# from model import NeuralNet
+# from nltk_utils import bag_of_words, tokenize
+
+
+# # Load model and data
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# FILE = "data.pth"
+# data = torch.load(FILE)
+
+# input_size = data["input_size"]
+# hidden_size = data["hidden_size"]
+# output_size = data["output_size"]
+# all_words = data['all_words']
+# tags = data['tags']
+# model_state = data["model_state"]
+
+# model = NeuralNet(input_size, hidden_size, output_size).to(device)
+# model.load_state_dict(model_state)
+# model.eval()
+
+# with open('intents.json', 'r') as json_data:
+#     intents = json.load(json_data)
+
+# bot_name = "Amaan"
+
+# @app.route("/chat", methods=["POST"])
+# def chat():
+#     user_message = request.json.get("message")
+#     if not user_message:
+#         return jsonify({"error": "Empty message"}), 400
+
+#     sentence = tokenize(user_message)
+#     X = bag_of_words(sentence, all_words)
+#     X = X.reshape(1, X.shape[0])
+#     X = torch.from_numpy(X).to(device)
+
+#     output = model(X)
+#     _, predicted = torch.max(output, dim=1)
+
+#     tag = tags[predicted.item()]
+#     probs = torch.softmax(output, dim=1)
+#     prob = probs[0][predicted.item()]
+
+#     if prob.item() > 0.75:
+#         for intent in intents['intents']:
+#             if tag == intent["tag"]:
+#                 response = random.choice(intent['responses'])
+#                 return jsonify({"bot": response})
+#     else:
+#         return jsonify({"bot": "I do not understand..."})
+
+
+
+
+
 import json
-import random
 import torch
+import random
+import re
+import urllib3
+from datetime import datetime
+from flask import Flask, request, jsonify
 from model import NeuralNet
 from nltk_utils import bag_of_words, tokenize
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Load model and data
+# Load model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 FILE = "data.pth"
@@ -558,32 +650,102 @@ with open('intents.json', 'r') as json_data:
 
 bot_name = "Amaan"
 
+def fetch_notifications():
+    """Scrapes latest JKPSC notifications"""
+    base_url = "http://www.jkpsc.nic.in/"
+    try:
+        response = requests.get(base_url, timeout=15, verify=False)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        notifications = []
+
+        for item in soup.select('.notificationnews.myBox li:not([style*="display: none"])'):
+            link = item.find('a')
+            if link and link.text.strip():
+                text = re.sub(r'\d{2}/\d{2}/\d{4}', '', link.text).strip()
+                if any(keyword in text.lower() for keyword in ['exam', 'admit', 'result', 'syllabus']):
+                    notifications.append({
+                        "text": text,
+                        "link": urljoin(base_url, link['href']),
+                        "date": datetime.now().strftime("%d/%m/%Y")
+                    })
+
+        return notifications[:5]  # Return top 5 notifications
+
+    except Exception as e:
+        print(f"Scraping error: {str(e)}")
+        return None
+
+
+def format_notifications(notifications):
+    """Formats notifications into an HTML format with clickable 'Download' links."""
+    response = "\n📢 <b>Latest JKPSC Updates:</b><br><br>"  # Added HTML tags for bold and line breaks
+    
+    for i, notif in enumerate(notifications[:5], start=1):
+        text = notif['text']
+        date = notif.get('date', 'N/A')
+        link = notif['link']
+        
+        response += f"{i}. {text}<br>   📅 {date}<br>  🔗 <a href='{link}' target='_blank'>Download</a><br><br>"
+    
+    return response
+
+
+
+
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_message = request.json.get("message")
-    if not user_message:
-        return jsonify({"error": "Empty message"}), 400
+    """Handles chatbot interactions"""
+    try:
+        user_message = request.json.get("message", "").lower().strip()
 
-    sentence = tokenize(user_message)
-    X = bag_of_words(sentence, all_words)
-    X = X.reshape(1, X.shape[0])
-    X = torch.from_numpy(X).to(device)
+        if not user_message:
+            return jsonify({"response": "Please enter a valid question"})
 
-    output = model(X)
-    _, predicted = torch.max(output, dim=1)
+        # Model processing
+        sentence = tokenize(user_message)
+        X = bag_of_words(sentence, all_words)
+        X = X.reshape(1, X.shape[0])
+        X = torch.from_numpy(X).to(device)
 
-    tag = tags[predicted.item()]
-    probs = torch.softmax(output, dim=1)
-    prob = probs[0][predicted.item()]
+        output = model(X)
+        _, predicted = torch.max(output, dim=1)
+        tag = tags[predicted.item()]
+        probs = torch.softmax(output, dim=1)
+        prob = probs[0][predicted.item()]
 
-    if prob.item() > 0.75:
-        for intent in intents['intents']:
-            if tag == intent["tag"]:
-                response = random.choice(intent['responses'])
-                return jsonify({"bot": response})
-    else:
-        return jsonify({"bot": "I do not understand..."})
+        # Handling notifications
+        exam_keywords = ['exam', 'admit', 'result', 'test', 'notification']
+        if any(keyword in user_message for keyword in exam_keywords):
+            notifications = fetch_notifications()
+            if notifications:
+                return jsonify({
+                    "response": format_notifications(notifications),
+                    "type": "exam_updates"
+                })
+            return jsonify({
+                "response": "No recent exam updates found. Check the official website: http://jkpsc.nic.in",
+                "type": "error"
+            })
 
+        # Intent matching
+        if prob.item() > 0.65:
+            for intent in intents['intents']:
+                if tag == intent["tag"]:
+                    if tag == "notifications":
+                        notifications = fetch_notifications()
+                        print("dsjhhbdjlcdbaskldbvsk;bask;bk;")
+                        print(notifications)
+                        if notifications:
+                            return jsonify({"response": format_notifications(notifications)})
+                        return jsonify({"response": "⚠️ Couldn't fetch updates. Try visiting: http://jkpsc.nic.in"})
+
+                    return jsonify({"response": random.choice(intent['responses'])})
+
+        return jsonify({"response": "I specialize in JKPSC notifications. Ask me about:\n- Latest exam updates\n- Recent circulars\n- Government job news"})
+
+    except Exception as e:
+        print(f"Chat error: {str(e)}")
+        return jsonify({"response": "Service temporarily unavailable. Please try again later."}), 500
 
 
 
