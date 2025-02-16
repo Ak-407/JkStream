@@ -9,3 +9,6 @@ torch
 nltk
 gunicorn
 numpy
+bs4
+nltk
+urllib3
