@@ -2,7 +2,7 @@ import numpy as np
 import nltk
 nltk.download('punkt_tab')
 from nltk.stem.porter import PorterStemmer
-
+import re
 stemmer = PorterStemmer()
 
 
@@ -11,6 +11,10 @@ def tokenize(sentence):
     split sentence into array of words/tokens
     a token can be a word or punctuation character, or number
     """
+    sentence = sentence.lower()
+    sentence = re.sub(r'\bjkpsc\b', 'jkssb', sentence)
+    sentence = re.sub(r'\bj&kpsc\b', 'jkssb', sentence)
+
     return nltk.word_tokenize(sentence)
 
 
@@ -23,7 +27,14 @@ def stem(word):
     -> ["organ", "organ", "organ"]
     """
     return stemmer.stem(word.lower())
+# In nltk_utils.py
+def tokenize(sentence):
+    # Add special handling for JKSSB/JKPSc variations
+    sentence = sentence.lower()
+    sentence = re.sub(r'\bjkpsc\b', 'jkssb', sentence)
+    sentence = re.sub(r'\bj&kpsc\b', 'jkssb', sentence)
 
+    return nltk.word_tokenize(sentence)
 
 def bag_of_words(tokenized_sentence, words):
     """
