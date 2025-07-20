@@ -75,6 +75,8 @@ async def scrape_news():
     return articles_data
 
 
+
+
 async def scrape_articles_from_jkalerts():
     url = 'https://www.bing.com/news/search?q=kashmir&qs=n&form=QBNT&sp=-1&lq=0&pq=kashm&sc=10-5&sk=&cvid=0851B772B9E44B47A08030C01F2F8521&ghsh=0&ghacc=0&ghpl='
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
@@ -113,9 +115,6 @@ async def scrape_articles_from_jkalerts():
             return news_list
         else:
             return []
-
-        read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
-
 
 
 async def scrape_articles2():
