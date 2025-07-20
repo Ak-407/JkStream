@@ -168,45 +168,54 @@ async def scrape_articles2():
 
 async def scrape_articles3():
     url = 'https://linkingsky.com/government-exams/government-jobs-in-jammu-and-kashmir.html'
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
 
-    async with aiohttp.ClientSession() as session:
-        response = await fetch(session, url, headers)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        table = soup.find('table', class_='tbl_states_jobs')
+        rows = table.find('tbody').find_all('tr') if table else []
 
-        if response:
-            soup = BeautifulSoup(response, 'html.parser')
-            table_rows = soup.find_all('tr', class_='top_job')
+        job_list = []
+        for row in rows:
+            try:
+                columns = row.find_all('td')
+                if len(columns) < 7:
+                    continue  # skip if not enough columns
 
-            job_list = []
-            for row in table_rows:
-                post_date_td = row.find('td', {'data-title': 'Post Date'})
-                organization_td = row.find('td', {'data-title': 'Organization'})
-                posts_td = row.find('td', {'data-title': 'Posts'})
-                qualification_td = row.find('td', {'data-title': 'Qualification'})
-                last_date_td = row.find('td', {'data-title': 'Last Date'})
+                post_date = columns[0].get_text(strip=True)
 
-                if not all([post_date_td, organization_td, posts_td, qualification_td, last_date_td]):
-                    continue  # Skip rows with missing data
+                org_tag = columns[1].find('a')
+                organization = org_tag.get_text(strip=True) if org_tag else columns[1].get_text(strip=True)
+                link = urljoin(url, org_tag['href']) if org_tag and org_tag.has_attr('href') else "No link available"
 
-                post_date = post_date_td.get_text(strip=True)
-                organization_name = organization_td.get_text(strip=True)
-                organization_link = organization_td.find('a')['href'] if organization_td.find('a') else "No link available"
-                posts = posts_td.get_text(strip=True)
-                qualification = qualification_td.get_text(strip=True)
-                last_date = last_date_td.get_text(strip=True)
+                posts = columns[2].get_text(strip=True)
+                qualification = columns[3].get_text(separator=", ", strip=True)
+                job_type = columns[4].get_text(strip=True)
+                tenure = columns[5].get_text(strip=True)
+                last_date = columns[6].get_text(strip=True)
 
                 job_list.append({
                     'post_date': post_date,
-                    'organization': organization_name,
+                    'organization': organization,
                     'posts': posts,
                     'qualification': qualification,
+                    'type': job_type,
+                    'tenure': tenure,
                     'last_date': last_date,
-                    'link': organization_link
+                    'link': link
                 })
+            except Exception as e:
+                print(f"Error parsing row: {e}")
+                continue
 
-            return job_list
-        else:
-            return []
+        return job_list
+    else:
+        print(f"Failed to fetch URL. Status code: {response.status_code}")
+        return []
+
 
 
 async def scrape_articles4():
