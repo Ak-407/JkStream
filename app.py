@@ -56,9 +56,15 @@ async def scrape_news():
                     content_tag = article.find('div', class_='post-content')
                     content_text = content_tag.get_text() if content_tag else "No content available"
 
-                    read_more_tag = article.find('div', class_='readMore').find('a')
+                    # read_more_tag = article.find('div', class_='readMore').find('a')
+                    # read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
+                    # read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+
+                    read_more_div = article.find('div', class_='readMore')
+                    read_more_tag = read_more_div.find('a') if read_more_div else None
                     read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
                     read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+
 
                     articles_data.append({
                         'title': title_text,
@@ -112,9 +118,62 @@ async def scrape_articles_from_jkalerts():
         else:
             return []
 
+# async def scrape_articles2():
+#     url = 'https://jkalerts.com/category/jammu-kashmir-news/kashmir-news/'
+#     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+#     articles_data2 = []
+
+#     async with aiohttp.ClientSession() as session:
+#         response = await fetch(session, url, headers)
+
+#         if response:
+#             soup = BeautifulSoup(response, 'html.parser')
+#             articles = soup.find_all('article', class_='post')
+
+#             if not articles:
+#                 return []
+
+#             for article in articles:
+#                 time_tag = article.find('div', class_='post-date-ribbon')
+#                 time_text = time_tag.get_text() if time_tag else "No date available"
+
+#                 title_tag = article.find('h2', class_='title')
+#                 title_text = title_tag.get_text() if title_tag else "No title available"
+
+#                 info_tag = article.find('div', class_='post-info')
+#                 info_text = info_tag.get_text() if info_tag else "No information available"
+
+#                 image_tag = article.find('img', class_='attachment-ribbon-lite-featured size-ribbon-lite-featured wp-post-image')
+#                 image_url = image_tag['src'] if image_tag and 'src' in image_tag.attrs else "No image available"
+
+#                 content_tag = article.find('div', class_='post-content')
+#                 content_text = content_tag.get_text() if content_tag else "No content available"
+
+#                 read_more_tag = article.find('div', class_='readMore').find('a')
+#                 read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
+#                 read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+
+#                 articles_data2.append({
+#                     'title': title_text,
+#                     'image_url': image_url,
+#                     'info': info_text,
+#                     'content': content_text,
+#                     'date': time_text,
+#                     'read_more_url': read_more_url,
+#                     'read_more_title': read_more_title
+#                 })
+#         else:
+#             return {'error': f'Failed to retrieve the articles from {url}'}
+
+#         if not articles_data2:
+#             return {'error': 'No articles found'}
+
+#         return articles_data2
+
+
 async def scrape_articles2():
     url = 'https://jkalerts.com/category/jammu-kashmir-news/kashmir-news/'
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0'}
     articles_data2 = []
 
     async with aiohttp.ClientSession() as session:
@@ -124,45 +183,41 @@ async def scrape_articles2():
             soup = BeautifulSoup(response, 'html.parser')
             articles = soup.find_all('article', class_='post')
 
-            if not articles:
-                return []
-
             for article in articles:
-                time_tag = article.find('div', class_='post-date-ribbon')
-                time_text = time_tag.get_text() if time_tag else "No date available"
+                try:
+                    time_tag = article.find('div', class_='post-date-ribbon')
+                    time_text = time_tag.get_text(strip=True) if time_tag else "No date available"
 
-                title_tag = article.find('h2', class_='title')
-                title_text = title_tag.get_text() if title_tag else "No title available"
+                    title_tag = article.find('h2', class_='title')
+                    title_text = title_tag.get_text(strip=True) if title_tag else "No title available"
 
-                info_tag = article.find('div', class_='post-info')
-                info_text = info_tag.get_text() if info_tag else "No information available"
+                    info_tag = article.find('div', class_='post-info')
+                    info_text = info_tag.get_text(strip=True) if info_tag else "No information available"
 
-                image_tag = article.find('img', class_='attachment-ribbon-lite-featured size-ribbon-lite-featured wp-post-image')
-                image_url = image_tag['src'] if image_tag and 'src' in image_tag.attrs else "No image available"
+                    image_tag = article.find('img', class_='attachment-ribbon-lite-featured size-ribbon-lite-featured wp-post-image')
+                    image_url = image_tag.get('src', '/static/m.png') if image_tag else '/static/m.png'
 
-                content_tag = article.find('div', class_='post-content')
-                content_text = content_tag.get_text() if content_tag else "No content available"
+                    content_tag = article.find('div', class_='post-content')
+                    content_text = content_tag.get_text(strip=True) if content_tag else "No content available"
 
-                read_more_tag = article.find('div', class_='readMore').find('a')
-                read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
-                read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+                    read_more_div = article.find('div', class_='readMore')
+                    read_more_tag = read_more_div.find('a') if read_more_div else None
+                    read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
+                    read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
 
-                articles_data2.append({
-                    'title': title_text,
-                    'image_url': image_url,
-                    'info': info_text,
-                    'content': content_text,
-                    'date': time_text,
-                    'read_more_url': read_more_url,
-                    'read_more_title': read_more_title
-                })
-        else:
-            return {'error': f'Failed to retrieve the articles from {url}'}
-
-        if not articles_data2:
-            return {'error': 'No articles found'}
-
+                    articles_data2.append({
+                        'title': title_text,
+                        'image_url': image_url,
+                        'info': info_text,
+                        'content': content_text,
+                        'date': time_text,
+                        'read_more_url': read_more_url,
+                        'read_more_title': read_more_title
+                    })
+                except Exception as e:
+                    print(f"Error parsing article in scrape_articles2: {e}")
         return articles_data2
+
 
 async def scrape_articles3():
     url = 'https://linkingsky.com/government-exams/government-jobs-in-jammu-and-kashmir.html'
@@ -230,9 +285,11 @@ async def scrape_articles4():
                     content_tag = article.find('div', class_='post-content')
                     content_text = content_tag.get_text() if content_tag else "No content available"
 
-                    read_more_tag = article.find('div', class_='readMore').find('a')
+                    read_more_div = article.find('div', class_='readMore')
+                    read_more_tag = read_more_div.find('a') if read_more_div else None
                     read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
                     read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+
 
                     articles_data4.append({
                         'title': title_text,
