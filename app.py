@@ -185,17 +185,15 @@ async def scrape_articles3():
                 qualification_td = row.find('td', {'data-title': 'Qualification'})
                 last_date_td = row.find('td', {'data-title': 'Last Date'})
 
-                post_date = post_date_td.get_text(strip=True) if post_date_td else "N/A"
-                organization_name = organization_td.get_text(strip=True) if organization_td else "N/A"
-                posts = posts_td.get_text(strip=True) if posts_td else "N/A"
-                qualification = qualification_td.get_text(strip=True) if qualification_td else "N/A"
-                last_date = last_date_td.get_text(strip=True) if last_date_td else "N/A"
+                if not all([post_date_td, organization_td, posts_td, qualification_td, last_date_td]):
+                    continue  # Skip rows with missing data
 
-                if organization_td:
-                    a_tag = organization_td.find('a')
-                    organization_link = a_tag['href'] if a_tag and a_tag.has_attr('href') else "No link available"
-                else:
-                    organization_link = "No link available"
+                post_date = post_date_td.get_text(strip=True)
+                organization_name = organization_td.get_text(strip=True)
+                organization_link = organization_td.find('a')['href'] if organization_td.find('a') else "No link available"
+                posts = posts_td.get_text(strip=True)
+                qualification = qualification_td.get_text(strip=True)
+                last_date = last_date_td.get_text(strip=True)
 
                 job_list.append({
                     'post_date': post_date,
