@@ -22,6 +22,113 @@ async def fetch(session, url, headers):
 
 
 
+
+def scrape_neet():
+    base_url = "https://neet.nta.nic.in/"
+    notifications = []
+
+    try:
+        response = requests.get(base_url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        links = soup.select("div.vc_tta-panel-body div.gen-list ul li a")
+
+        for link in links:
+            text = link.text.strip()
+            document_url = link.get('href')
+
+            if document_url and document_url.startswith('http'):
+                notifications.append({
+                    "text": text,
+                    "link": document_url,
+                    "date": datetime.now().strftime("%d/%m/%Y")
+                })
+    except Exception as e:
+        print(f"Error scraping NEET: {e}")
+
+    return notifications
+
+def scrape_jee():
+    base_url = "https://jeemain.nta.nic.in/"
+    notifications = []
+
+    try:
+        response = requests.get(base_url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        links = soup.select("div.vc_tta-panel-body div.gen-list ul li a")
+
+        for link in links:
+            text = link.text.strip()
+            document_url = link.get('href')
+
+            if document_url and document_url.startswith('http'):
+                notifications.append({
+                    "text": text,
+                    "link": document_url,
+                    "date": datetime.now().strftime("%d/%m/%Y")
+                })
+    except Exception as e:
+        print(f"Error scraping JEE: {e}")
+
+    return notifications
+
+def scrape_jkssb():
+    base_url = "https://jkssb.nic.in/"
+    target_url = urljoin(base_url, "Whatsnew.html")
+    notifications = []
+
+    try:
+        response = requests.get(target_url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        links = soup.select("td a.linkText")
+
+        for link in links[:7]:  # Limit to first 7
+            text = link.text.strip()
+            document_url = urljoin(base_url, link.get('href').replace("..", ""))
+
+            notifications.append({
+                "text": text,
+                "link": document_url,
+                "date": datetime.now().strftime("%d/%m/%Y")
+            })
+    except Exception as e:
+        print(f"Error scraping JKSSB: {e}")
+
+    return notifications
+
+def scrape_jkpsc():
+    base_url = "http://www.jkpsc.nic.in/"
+    notifications = []
+
+    try:
+        response = requests.get(base_url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        for item in soup.select('.notificationnews.myBox li:not([style*="display: none"])'):
+            link = item.find('a')
+            if link and link.text.strip():
+                text = re.sub(r'\d{2}/\d{2}/\d{4}', '', link.text).strip()
+                if any(keyword in text.lower() for keyword in ['exam', 'admit', 'result', 'syllabus']):
+                    notifications.append({
+                        "text": text,
+                        "link": urljoin(base_url, link['href']),
+                        "date": datetime.now().strftime("%d/%m/%Y")
+                    })
+    except Exception as e:
+        print(f"Error scraping JKPSC: {e}")
+
+    return notifications
+
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    return jsonify({
+        "neet": scrape_neet(),
+        "jee": scrape_jee(),
+        "jkssb": scrape_jkssb(),
+        "jkpsc": scrape_jkpsc()
+    })
+
+
 async def scrape_news():
     urls = [
         'https://jkalerts.com/category/jammu-kashmir-jobs/govt-jobs-india/',
@@ -56,11 +163,9 @@ async def scrape_news():
                     content_tag = article.find('div', class_='post-content')
                     content_text = content_tag.get_text() if content_tag else "No content available"
 
-                    read_more_div = article.find('div', class_='readMore')
-                    read_more_tag = read_more_div.find('a') if read_more_div else None
+                    read_more_tag = article.find('div', class_='readMore').find('a')
                     read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
                     read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
-
 
                     articles_data.append({
                         'title': title_text,
@@ -73,8 +178,6 @@ async def scrape_news():
                     })
     
     return articles_data
-
-
 
 
 async def scrape_articles_from_jkalerts():
@@ -116,10 +219,9 @@ async def scrape_articles_from_jkalerts():
         else:
             return []
 
-
 async def scrape_articles2():
     url = 'https://jkalerts.com/category/jammu-kashmir-news/kashmir-news/'
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     articles_data2 = []
 
     async with aiohttp.ClientSession() as session:
@@ -129,41 +231,90 @@ async def scrape_articles2():
             soup = BeautifulSoup(response, 'html.parser')
             articles = soup.find_all('article', class_='post')
 
+            if not articles:
+                return []
+
             for article in articles:
-                try:
-                    time_tag = article.find('div', class_='post-date-ribbon')
-                    time_text = time_tag.get_text(strip=True) if time_tag else "No date available"
+                time_tag = article.find('div', class_='post-date-ribbon')
+                time_text = time_tag.get_text() if time_tag else "No date available"
 
-                    title_tag = article.find('h2', class_='title')
-                    title_text = title_tag.get_text(strip=True) if title_tag else "No title available"
+                title_tag = article.find('h2', class_='title')
+                title_text = title_tag.get_text() if title_tag else "No title available"
 
-                    info_tag = article.find('div', class_='post-info')
-                    info_text = info_tag.get_text(strip=True) if info_tag else "No information available"
+                info_tag = article.find('div', class_='post-info')
+                info_text = info_tag.get_text() if info_tag else "No information available"
 
-                    image_tag = article.find('img', class_='attachment-ribbon-lite-featured size-ribbon-lite-featured wp-post-image')
-                    image_url = image_tag.get('src', '/static/m.png') if image_tag else '/static/m.png'
+                image_tag = article.find('img', class_='attachment-ribbon-lite-featured size-ribbon-lite-featured wp-post-image')
+                image_url = image_tag['src'] if image_tag and 'src' in image_tag.attrs else "No image available"
 
-                    content_tag = article.find('div', class_='post-content')
-                    content_text = content_tag.get_text(strip=True) if content_tag else "No content available"
+                content_tag = article.find('div', class_='post-content')
+                content_text = content_tag.get_text() if content_tag else "No content available"
 
-                    read_more_div = article.find('div', class_='readMore')
-                    read_more_tag = read_more_div.find('a') if read_more_div else None
-                    read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
-                    read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
+                read_more_tag = article.find('div', class_='readMore').find('a')
+                read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
+                read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
 
-                    articles_data2.append({
-                        'title': title_text,
-                        'image_url': image_url,
-                        'info': info_text,
-                        'content': content_text,
-                        'date': time_text,
-                        'read_more_url': read_more_url,
-                        'read_more_title': read_more_title
-                    })
-                except Exception as e:
-                    print(f"Error parsing article in scrape_articles2: {e}")
+                articles_data2.append({
+                    'title': title_text,
+                    'image_url': image_url,
+                    'info': info_text,
+                    'content': content_text,
+                    'date': time_text,
+                    'read_more_url': read_more_url,
+                    'read_more_title': read_more_title
+                })
+        else:
+            return {'error': f'Failed to retrieve the articles from {url}'}
+
+        if not articles_data2:
+            return {'error': 'No articles found'}
+
         return articles_data2
 
+# async def scrape_articles3():
+#     url = 'https://linkingsky.com/government-exams/government-jobs-in-jammu-and-kashmir.html'
+#     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+#     response = requests.get(url, headers=headers)
+
+#     if response.status_code == 200:
+#         soup = BeautifulSoup(response.content, 'html.parser')
+#         table_rows = soup.find_all('tr', class_='top_job')
+
+#         job_list = []
+#         for row in table_rows:
+#             post_date = row.find('td', {'data-title': 'Post Date'}).get_text()
+#             organization_td = row.find('td', {'data-title': 'Organization'})
+#             organization_name = organization_td.get_text()
+#             organization_link_tag = organization_td.find('a')
+#             organization_link = organization_link_tag['href'] if organization_link_tag else "No link available"
+            
+#             if organization_link != "No link available":
+#                 parsed_url = urlparse(organization_link)
+#                 base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+#             else:
+#                 base_url = organization_link
+
+#             posts = row.find('td', {'data-title': 'Posts'}).get_text(strip=True)
+#             qualification = row.find('td', {'data-title': 'Qualification'}).get_text(strip=True)
+#             last_date = row.find('td', {'data-title': 'Last Date'}).get_text(strip=True)
+
+#             job_list.append({
+#                 'post_date': post_date,
+#                 'organization': organization_name,
+#                 'posts': posts,
+#                 'qualification': qualification,
+#                 'last_date': last_date,
+#                 'link': base_url
+#             })
+
+#         return job_list
+#     else:
+#         return []
+from urllib.parse import urljoin  # safer than manually making base_url
+
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
 async def scrape_articles3():
     url = 'https://linkingsky.com/government-exams/government-jobs-in-jammu-and-kashmir.html'
@@ -217,6 +368,7 @@ async def scrape_articles3():
 
 
 
+
 async def scrape_articles4():
     urls = [
         'https://jkalerts.com/category/jammu-kashmir-notifications/'
@@ -249,11 +401,9 @@ async def scrape_articles4():
                     content_tag = article.find('div', class_='post-content')
                     content_text = content_tag.get_text() if content_tag else "No content available"
 
-                    read_more_div = article.find('div', class_='readMore')
-                    read_more_tag = read_more_div.find('a') if read_more_div else None
+                    read_more_tag = article.find('div', class_='readMore').find('a')
                     read_more_url = read_more_tag['href'] if read_more_tag and 'href' in read_more_tag.attrs else "#"
                     read_more_title = read_more_tag['title'] if read_more_tag and 'title' in read_more_tag.attrs else "Read More"
-
 
                     articles_data4.append({
                         'title': title_text,
@@ -670,7 +820,6 @@ with open('intents.json', 'r') as json_data:
     intents = json.load(json_data)
 
 bot_name = "Amaan"
-
 def fetch_notifications():
     """Scrapes latest JKPSC notifications"""
     base_url = "http://www.jkpsc.nic.in/"
@@ -693,15 +842,105 @@ def fetch_notifications():
         return notifications[:5]  # Return top 5 notifications
 
     except Exception as e:
-        print(f"Scraping error: {str(e)}")
+        print(f"JKPSC Scraping error: {str(e)}")
         return None
 
+def fetch_notifications_jkssb():
+    """Scrapes latest JKSSB notifications with document download links"""
+    base_url = "https://jkssb.nic.in/"
+    target_url = urljoin(base_url, "Whatsnew.html")
 
-def format_notifications(notifications):
+    try:
+        response = requests.get(target_url, timeout=15, verify=False)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        notifications = []
+
+        # Select all relevant links
+        links = soup.select("td a.linkText")
+
+        for link in links[:7]:  # Limit to first 7
+            text = link.text.strip()
+            document_url = urljoin(base_url, link.get('href').replace("..", ""))
+
+            notifications.append({
+                "text": text,
+                "link": document_url,
+                "date": datetime.now().strftime("%d/%m/%Y")
+            })
+
+        return notifications
+
+    except Exception as e:
+        print(f"JKSSB Scraping error: {str(e)}")
+        return None
+
+def fetch_neet_notifications():
+    """Scrapes all NEET 2025 notifications with document download links"""
+    base_url = "https://neet.nta.nic.in/"
+    try:
+        response = requests.get(base_url, timeout=15, verify=False)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        notifications = []
+
+        # Select <ul><li><a> structure for NEET notifications
+        links = soup.select("div.vc_tta-panel-body div.gen-list ul li a")
+
+        for link in links:  # Scraping all available notifications
+            text = link.text.strip()
+            document_url = link.get('href')
+
+            # Make sure it's a valid absolute URL
+            if document_url and document_url.startswith('http'):
+                notifications.append({
+                    "text": text,
+                    "link": document_url,
+                    "date": datetime.now().strftime("%d/%m/%Y")
+                })
+
+        return notifications
+
+    except Exception as e:
+        print(f"NEET Scraping error: {str(e)}")
+        return None
+
+def fetch_jee_notifications():
+    """Scrapes all JEE notifications with document download links"""
+    base_url = "https://jeemain.nta.nic.in/"
+    try:
+        # Send a request to the JEE notifications page
+        response = requests.get(base_url, timeout=15, verify=False)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        notifications = []
+
+        # Select <ul><li><a> structure for JEE notifications (assumed)
+        links = soup.select("div.vc_tta-panel-body div.gen-list ul li a")
+
+        for link in links:  # Scraping all available notifications
+            text = link.text.strip()
+            document_url = link.get('href')
+
+            # Ensure the URL is valid
+            if document_url and document_url.startswith('http'):
+                notifications.append({
+                    "text": text,
+                    "link": document_url,
+                    "date": datetime.now().strftime("%d/%m/%Y")
+                })
+
+        return notifications
+
+    except Exception as e:
+        print(f"JEE Scraping error: {str(e)}")
+        return None
+
+def format_notifications(notifications, source="JKPSC"):
     """Formats notifications into an HTML format with clickable 'Download' links."""
-    response = "\n📢 <b>Latest JKPSC Updates:</b><br><br>"  # Added HTML tags for bold and line breaks
+    response = f"\n📢 <b>Latest {source} Updates:</b><br><br>"
     
-    for i, notif in enumerate(notifications[:5], start=1):
+    if not notifications:
+        return f"No recent {source} updates found."
+    
+    for i, notif in enumerate(notifications[:7], start=1):  # Increased to 7 items
         text = notif['text']
         date = notif.get('date', 'N/A')
         link = notif['link']
@@ -710,19 +949,98 @@ def format_notifications(notifications):
     
     return response
 
+def detect_exam_type(user_message):
+    """Detects which exam type the user is asking about"""
+    user_message = user_message.lower()
+    
+    # Check for specific exam mentions
+    if any(keyword in user_message for keyword in ['jkssb', 'ssb']):
+        return 'jkssb'
+    elif any(keyword in user_message for keyword in ['neet', 'medical']):
+        return 'neet'
+    elif any(keyword in user_message for keyword in ['jee', 'engineering', 'iit']):
+        return 'jee'
+    elif any(keyword in user_message for keyword in ['jkpsc', 'psc']):
+        return 'jkpsc'
+    
+    # Default to JKPSC if no specific exam is mentioned but exam keywords are present
+    exam_keywords = ['exam', 'admit', 'result', 'test', 'notification', 'update']
+    if any(keyword in user_message for keyword in exam_keywords):
+        return 'jkpsc'
+    
+    return None
 
-
+def fetch_all_notifications():
+    """Fetches notifications from all sources and combines them"""
+    all_notifications = {
+        'JKPSC': fetch_notifications(),
+        'JKSSB': fetch_notifications_jkssb(),
+        'NEET': fetch_neet_notifications(),
+        'JEE': fetch_jee_notifications()
+    }
+    
+    combined_response = ""
+    for source, notifications in all_notifications.items():
+        if notifications:
+            combined_response += format_notifications(notifications, source) + "<br>"
+    
+    return combined_response if combined_response else "No recent updates found from any source."
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    """Handles chatbot interactions"""
+    """Handles chatbot interactions with multiple exam sources"""
     try:
         user_message = request.json.get("message", "").lower().strip()
 
         if not user_message:
             return jsonify({"response": "Please enter a valid question"})
 
-        # Model processing
+        # Detect exam type from user message
+        exam_type = detect_exam_type(user_message)
+        
+        # Handle specific exam notifications
+        if exam_type:
+            notifications = None
+            source_name = ""
+            fallback_url = ""
+            
+            if exam_type == 'jkpsc':
+                notifications = fetch_notifications()
+                source_name = "JKPSC"
+                fallback_url = "http://jkpsc.nic.in"
+            elif exam_type == 'jkssb':
+                notifications = fetch_notifications_jkssb()
+                source_name = "JKSSB"
+                fallback_url = "https://jkssb.nic.in"
+            elif exam_type == 'neet':
+                notifications = fetch_neet_notifications()
+                source_name = "NEET"
+                fallback_url = "https://neet.nta.nic.in"
+            elif exam_type == 'jee':
+                notifications = fetch_jee_notifications()
+                source_name = "JEE"
+                fallback_url = "https://jeemain.nta.nic.in"
+            
+            if notifications:
+                return jsonify({
+                    "response": format_notifications(notifications, source_name),
+                    "type": "exam_updates"
+                })
+            else:
+                return jsonify({
+                    "response": f"⚠️ No recent {source_name} updates found. Check the official website: {fallback_url}",
+                    "type": "error"
+                })
+
+        # Check for requests for all notifications
+        if any(phrase in user_message for phrase in ['all updates', 'all notifications', 'everything', 'all exams']):
+            combined_notifications = fetch_all_notifications()
+            return jsonify({
+                "response": combined_notifications,
+                "type": "exam_updates"
+            })
+
+        # Model processing for other intents
         sentence = tokenize(user_message)
         X = bag_of_words(sentence, all_words)
         X = X.reshape(1, X.shape[0])
@@ -734,39 +1052,36 @@ def chat():
         probs = torch.softmax(output, dim=1)
         prob = probs[0][predicted.item()]
 
-        # Handling notifications
-        exam_keywords = ['exam', 'admit', 'result', 'test', 'notification']
-        if any(keyword in user_message for keyword in exam_keywords):
-            notifications = fetch_notifications()
-            if notifications:
-                return jsonify({
-                    "response": format_notifications(notifications),
-                    "type": "exam_updates"
-                })
-            return jsonify({
-                "response": "No recent exam updates found. Check the official website: http://jkpsc.nic.in",
-                "type": "error"
-            })
-
-        # Intent matching
+        # Intent matching for other responses
         if prob.item() > 0.65:
             for intent in intents['intents']:
                 if tag == intent["tag"]:
                     if tag == "notifications":
+                        # Default to JKPSC notifications for general notification requests
                         notifications = fetch_notifications()
-                        print("dsjhhbdjlcdbaskldbvsk;bask;bk;")
-                        print(notifications)
                         if notifications:
-                            return jsonify({"response": format_notifications(notifications)})
-                        return jsonify({"response": "⚠️ Couldn't fetch updates. Try visiting: http://jkpsc.nic.in"})
+                            return jsonify({
+                                "response": format_notifications(notifications, "JKPSC"),
+                                "type": "exam_updates"
+                            })
+                        return jsonify({
+                            "response": "⚠️ Couldn't fetch updates. Try visiting: http://jkpsc.nic.in",
+                            "type": "error"
+                        })
 
                     return jsonify({"response": random.choice(intent['responses'])})
 
-        return jsonify({"response": "I specialize in JKPSC notifications. Ask me about:\n- Latest exam updates\n- Recent circulars\n- Government job news"})
+        # Default response with available exam types
+        return jsonify({
+            "response": "I can help you with notifications from:\n🏛️ JKPSC - Jammu & Kashmir Public Service Commission\n🏢 JKSSB - Jammu & Kashmir Services Selection Board\n🏥 NEET - National Eligibility cum Entrance Test\n🎓 JEE - Joint Entrance Examination\n\nJust ask about any specific exam or say 'all updates' for everything!"
+        })
 
     except Exception as e:
         print(f"Chat error: {str(e)}")
-        return jsonify({"response": "Service temporarily unavailable. Please try again later."}), 500
+        return jsonify({
+            "response": "Service temporarily unavailable. Please try again later.",
+            "type": "error"
+        }), 500
 
 
 
@@ -791,9 +1106,6 @@ def chat():
 
 
 
-import os
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))  # Default to port 5000 if not set
-    app.run(host='0.0.0.0', port=port, debug=True)
-
+    app.run(debug=True)
