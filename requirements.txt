@@ -1,6 +1,7 @@
 # Web Framework
 Flask==2.3.3
 flask-cors==4.0.0
+flask[async]
 
 # HTTP Requests and Web Scraping
 requests==2.31.0
