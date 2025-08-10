@@ -62,3 +62,4 @@ frozenlist==1.4.0
 multidict
 yarl==1.9.4
 attrs==23.1.0
+gunicorn
